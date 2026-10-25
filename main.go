@@ -7,11 +7,14 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+
+	"github.com/MaksimKrug/go-praktikum-final-project/pkg/db"
 )
 
 const (
-	webDir      = "./web"
-	portDefault = "7540"
+	webDir        = "./web"
+	portDefault   = "7540"
+	dbFileDefault = "scheduler.db"
 )
 
 func getPort() (string, error) {
@@ -32,8 +35,26 @@ func getPort() (string, error) {
 	return port, nil
 }
 
+func getDBPath() string {
+	dbPath := os.Getenv("TODO_DBFILE")
+	if dbPath == "" {
+		dbPath = dbFileDefault
+	}
+
+	return dbPath
+}
+
 func main() {
 
+	// create db if needed
+	dbPath := getDBPath()
+	err := db.Init(dbPath)
+	if err != nil {
+		log.Fatalf("db Init error: %v", err)
+	}
+	defer db.Close()
+
+	// handle web-server
 	http.Handle("/", http.FileServer(http.Dir(webDir)))
 
 	port, err := getPort()
