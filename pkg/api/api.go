@@ -33,6 +33,21 @@ func nextDayHandler(w http.ResponseWriter, r *http.Request) {
 
 }
 
+func taskHandler(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case http.MethodPost:
+		addTaskHandler(w, r)
+	default:
+		w.Header().Set("Allow", http.MethodPost)
+		w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		writeJSON(w, map[string]string{
+			"error": "Request method not supported",
+		})
+	}
+}
+
 func Init() {
 	http.HandleFunc("/api/nextdate", nextDayHandler)
+	http.HandleFunc("/api/task", taskHandler)
 }
