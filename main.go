@@ -46,6 +46,9 @@ func getDBPath() string {
 }
 
 func main() {
+	if err := api.ValidateAuthConfig(); err != nil {
+		log.Fatalf("auth configuration error: %v", err)
+	}
 
 	// create db if needed
 	dbPath := getDBPath()
