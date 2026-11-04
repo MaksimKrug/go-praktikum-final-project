@@ -8,6 +8,7 @@ import (
 	"os"
 	"strconv"
 
+	"github.com/MaksimKrug/go-praktikum-final-project/pkg/api"
 	"github.com/MaksimKrug/go-praktikum-final-project/pkg/db"
 )
 
@@ -61,6 +62,8 @@ func main() {
 	if err != nil {
 		log.Fatalf("getPort error: %v", err)
 	}
+
+	api.Init()
 
 	log.Printf("Server Listening on port: %s", port)
 	if err := http.ListenAndServe(net.JoinHostPort("", port), nil); err != nil {
