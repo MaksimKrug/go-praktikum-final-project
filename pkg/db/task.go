@@ -3,6 +3,7 @@ package db
 import (
 	"database/sql"
 	"fmt"
+	"time"
 )
 
 type Task struct {
@@ -31,4 +32,48 @@ func AddTask(task *Task) (int64, error) {
 	}
 
 	return id, nil
+}
+
+func Tasks(limit int, search string) ([]*Task, error) {
+	tasks := make([]*Task, 0)
+	query := `SELECT * FROM scheduler`
+	args := make([]any, 0, 3)
+
+	if date, err := time.Parse("02.01.2006", search); err == nil {
+		query += ` WHERE date = ?`
+		args = append(args, date.Format("20060102"))
+	} else {
+		query += ` WHERE title LIKE ? OR comment LIKE ?`
+		pattern := "%" + search + "%"
+		args = append(args, pattern, pattern)
+	}
+	query += ` ORDER BY date LIMIT ?`
+	args = append(args, limit)
+
+	rows, err := db.Query(query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		task := new(Task)
+		err := rows.Scan(
+			&task.ID,
+			&task.Date,
+			&task.Title,
+			&task.Comment,
+			&task.Repeat,
+		)
+		if err != nil {
+			return nil, err
+		}
+		tasks = append(tasks, task)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return tasks, nil
 }
