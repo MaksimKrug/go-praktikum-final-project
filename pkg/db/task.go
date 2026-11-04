@@ -2,6 +2,7 @@ package db
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	"time"
 )
@@ -36,7 +37,7 @@ func AddTask(task *Task) (int64, error) {
 
 func Tasks(limit int, search string) ([]*Task, error) {
 	tasks := make([]*Task, 0)
-	query := `SELECT * FROM scheduler`
+	query := `SELECT id, date, title, comment, repeat FROM scheduler`
 	args := make([]any, 0, 3)
 
 	if date, err := time.Parse("02.01.2006", search); err == nil {
@@ -76,4 +77,88 @@ func Tasks(limit int, search string) ([]*Task, error) {
 	}
 
 	return tasks, nil
+}
+
+func GetTask(id string) (*Task, error) {
+	var task Task
+	query := `SELECT id, date, title, comment, repeat FROM scheduler WHERE id = ?`
+	err := db.QueryRow(query, id).Scan(
+		&task.ID,
+		&task.Date,
+		&task.Title,
+		&task.Comment,
+		&task.Repeat,
+	)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, fmt.Errorf("Task not found")
+	}
+	if err != nil {
+		return nil, fmt.Errorf("get task: %w", err)
+	}
+
+	return &task, nil
+}
+
+func UpdateTask(task *Task) error {
+	query := `UPDATE scheduler
+			  SET date = :date,
+			  	  title = :title,
+				  comment = :comment,
+				  repeat = :repeat
+			  WHERE id = :id`
+	res, err := db.Exec(query,
+		sql.Named("date", task.Date),
+		sql.Named("title", task.Title),
+		sql.Named("comment", task.Comment),
+		sql.Named("repeat", task.Repeat),
+		sql.Named("id", task.ID),
+	)
+	if err != nil {
+		return err
+	}
+	n, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if n == 0 {
+		return fmt.Errorf("Task not found")
+	}
+	return nil
+}
+
+func DeleteTask(id string) error {
+	query := `DELETE FROM scheduler WHERE id = ?`
+	res, err := db.Exec(query, id)
+	if err != nil {
+		return err
+	}
+	n, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if n == 0 {
+		return fmt.Errorf("No task with such id: %s", id)
+	}
+	return nil
+}
+
+func UpdateDate(next, id string) error {
+	query := `UPDATE scheduler
+			  SET date = :date
+			  WHERE id = :id`
+	res, err := db.Exec(query,
+		sql.Named("date", next),
+		sql.Named("id", id),
+	)
+	if err != nil {
+		return err
+	}
+	n, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if n == 0 {
+		return fmt.Errorf("Task not found")
+	}
+	return nil
 }
