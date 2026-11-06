@@ -15,10 +15,10 @@ func checkDate(task *db.Task) error {
 	now := time.Now()
 
 	if task.Date == "" {
-		task.Date = now.Format(dateFormat)
+		task.Date = now.Format(db.DateFormat)
 	}
 
-	t, err := time.Parse(dateFormat, task.Date)
+	t, err := time.Parse(db.DateFormat, task.Date)
 	if err != nil {
 		return fmt.Errorf("task date not parsed: %w", err)
 	}
@@ -33,7 +33,7 @@ func checkDate(task *db.Task) error {
 
 	if afterNow(now, t) {
 		if task.Repeat == "" {
-			task.Date = now.Format(dateFormat)
+			task.Date = now.Format(db.DateFormat)
 		} else {
 			task.Date = next
 		}
@@ -49,29 +49,29 @@ func addTaskHandler(w http.ResponseWriter, r *http.Request) {
 
 	err := decoder.Decode(&task)
 	if err != nil {
-		writeJSON(w, map[string]string{
-			"error": "Not correct JSON: " + err.Error(),
+		writeJSON(w, http.StatusBadRequest, map[string]string{
+			"error": "invalid JSON: " + err.Error(),
 		})
 		return
 	}
 
 	var extra any
 	if err := decoder.Decode(&extra); err != io.EOF {
-		writeJSON(w, map[string]string{
-			"error": "Request body contains more than one JSON",
+		writeJSON(w, http.StatusBadRequest, map[string]string{
+			"error": "request body must contain one JSON object",
 		})
 		return
 	}
 
 	if task.Title == "" {
-		writeJSON(w, map[string]string{
-			"error": "Title not specified",
+		writeJSON(w, http.StatusBadRequest, map[string]string{
+			"error": "title not specified",
 		})
 		return
 	}
 
 	if err := checkDate(&task); err != nil {
-		writeJSON(w, map[string]string{
+		writeJSON(w, http.StatusBadRequest, map[string]string{
 			"error": err.Error(),
 		})
 		return
@@ -79,12 +79,10 @@ func addTaskHandler(w http.ResponseWriter, r *http.Request) {
 
 	id, err := db.AddTask(&task)
 	if err != nil {
-		writeJSON(w, map[string]string{
-			"error": err.Error(),
-		})
+		writeDBError(w, err)
 		return
 	}
-	writeJSON(w, map[string]string{
+	writeJSON(w, http.StatusOK, map[string]string{
 		"id": strconv.FormatInt(id, 10),
 	})
 

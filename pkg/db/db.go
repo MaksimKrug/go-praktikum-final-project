@@ -32,18 +32,24 @@ func Init(dbFile string) error {
 		return fmt.Errorf("db existence check: %w", err)
 	}
 
-	db, err = sql.Open("sqlite", dbFile)
+	conn, err := sql.Open("sqlite", dbFile)
 	if err != nil {
 		return fmt.Errorf("db open: %w", err)
 	}
+	if err := conn.Ping(); err != nil {
+		conn.Close()
+		return fmt.Errorf("db connection: %w", err)
+	}
 
 	if install {
-		_, err = db.Exec(schema)
+		_, err = conn.Exec(schema)
 		if err != nil {
+			conn.Close()
 			return fmt.Errorf("db creation: %w", err)
 		}
 	}
 
+	db = conn
 	return nil
 }
 

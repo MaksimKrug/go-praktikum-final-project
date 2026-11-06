@@ -11,24 +11,22 @@ func getTaskHandler(w http.ResponseWriter, r *http.Request) {
 	id := r.URL.Query().Get("id")
 	parsedId, err := strconv.ParseInt(id, 10, 64)
 	if err != nil {
-		writeJSON(w, map[string]string{
+		writeJSON(w, http.StatusBadRequest, map[string]string{
 			"error": err.Error(),
 		})
 		return
 	}
 	if parsedId <= 0 {
-		writeJSON(w, map[string]string{
-			"error": "Id should be greater than zero",
+		writeJSON(w, http.StatusBadRequest, map[string]string{
+			"error": "id should be greater than zero",
 		})
 		return
 	}
 
 	task, err := db.GetTask(id)
 	if err != nil {
-		writeJSON(w, map[string]string{
-			"error": err.Error(),
-		})
+		writeDBError(w, err)
 		return
 	}
-	writeJSON(w, task)
+	writeJSON(w, http.StatusOK, task)
 }

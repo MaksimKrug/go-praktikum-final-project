@@ -4,10 +4,9 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
-	"os"
 )
 
-func signinHandler(w http.ResponseWriter, r *http.Request) {
+func (a *apiHandlers) signinHandler(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodPost:
 		var request struct {
@@ -16,48 +15,46 @@ func signinHandler(w http.ResponseWriter, r *http.Request) {
 		decoder := json.NewDecoder(r.Body)
 		err := decoder.Decode(&request)
 		if err != nil {
-			writeJSON(w, map[string]string{
-				"error": "Not correct JSON: " + err.Error(),
+			writeJSON(w, http.StatusBadRequest, map[string]string{
+				"error": "invalid JSON: " + err.Error(),
 			})
 			return
 		}
 		var extra any
 		if err := decoder.Decode(&extra); err != io.EOF {
-			writeJSON(w, map[string]string{
-				"error": "Тело запроса должно содержать один JSON-объект",
+			writeJSON(w, http.StatusBadRequest, map[string]string{
+				"error": "request body must contain one JSON object",
 			})
 			return
 		}
 
 		password := request.Password
 
-		envPassword := os.Getenv("TODO_PASSWORD")
+		envPassword := a.config.Password
 		if envPassword == "" {
-			writeJSON(w, map[string]string{
-				"error": "Authentication off",
+			writeJSON(w, http.StatusBadRequest, map[string]string{
+				"error": "authentication off",
 			})
 			return
 		}
 		if password == envPassword {
-			token, err := createToken(password)
+			token, err := createToken(password, a.config.JWTSecret)
 			if err != nil {
-				writeJSON(w, map[string]string{
+				writeJSON(w, http.StatusInternalServerError, map[string]string{
 					"error": err.Error(),
 				})
 				return
 			}
-			writeJSON(w, map[string]string{"token": token})
+			writeJSON(w, http.StatusOK, map[string]string{"token": token})
 		} else {
-			writeJSON(w, map[string]string{
-				"error": "Wrong password",
+			writeJSON(w, http.StatusUnauthorized, map[string]string{
+				"error": "wrong password",
 			})
 		}
 	default:
 		w.Header().Set("Allow", http.MethodPost)
-		w.Header().Set("Content-Type", "application/json; charset=UTF-8")
-		w.WriteHeader(http.StatusMethodNotAllowed)
-		writeJSON(w, map[string]string{
-			"error": "Request method not supported",
+		writeJSON(w, http.StatusMethodNotAllowed, map[string]string{
+			"error": "request method not supported",
 		})
 	}
 }

@@ -5,10 +5,12 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/MaksimKrug/go-praktikum-final-project/pkg/db"
 )
 
 func afterNow(date, now time.Time) bool {
-	return date.Format(dateFormat) > now.Format(dateFormat)
+	return date.Format(db.DateFormat) > now.Format(db.DateFormat)
 }
 
 func nextDays(date, now time.Time, args []string) (time.Time, error) {
@@ -35,7 +37,6 @@ func nextDays(date, now time.Time, args []string) (time.Time, error) {
 }
 
 func nextYear(date, now time.Time, args []string) (time.Time, error) {
-	// не уверен что нужна эта проверка и что лучше сделать её здесь
 	if len(args) != 0 {
 		return time.Time{}, fmt.Errorf("year repeat must have no arguments: %v", args)
 	}
@@ -191,7 +192,7 @@ func nextMonth(date, now time.Time, args []string) (time.Time, error) {
 }
 
 func NextDate(now time.Time, dstart, repeat string) (string, error) {
-	date, err := time.Parse(dateFormat, dstart)
+	date, err := time.Parse(db.DateFormat, dstart)
 	if err != nil {
 		return "", fmt.Errorf("dstart %s not parsed: %w", dstart, err)
 	}
@@ -217,6 +218,6 @@ func NextDate(now time.Time, dstart, repeat string) (string, error) {
 		return "", err
 	}
 
-	return newDate.Format(dateFormat), err
+	return newDate.Format(db.DateFormat), err
 
 }

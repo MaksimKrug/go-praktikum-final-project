@@ -6,7 +6,6 @@ import (
 	"encoding/hex"
 	"fmt"
 	"net/http"
-	"os"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -17,35 +16,13 @@ type tokenClaims struct {
 	jwt.RegisteredClaims
 }
 
-// ValidateAuthConfig checks the signing secret when authentication is enabled.
-func ValidateAuthConfig() error {
-	if os.Getenv("TODO_PASSWORD") == "" {
-		return nil
-	}
-	_, err := jwtSecret()
-	return err
-}
-
-func jwtSecret() ([]byte, error) {
-	secret := os.Getenv("TODO_JWT_SECRET")
-	if len(secret) < 32 {
-		return nil, fmt.Errorf("TODO_JWT_SECRET must contain at least 32 bytes")
-	}
-	return []byte(secret), nil
-}
-
 func passwordHash(password string, secret []byte) string {
 	hash := hmac.New(sha256.New, secret)
 	hash.Write([]byte(password))
 	return hex.EncodeToString(hash.Sum(nil))
 }
 
-func createToken(password string) (string, error) {
-	secret, err := jwtSecret()
-	if err != nil {
-		return "", err
-	}
-
+func createToken(password string, secret []byte) (string, error) {
 	claims := tokenClaims{
 		PasswordHash: passwordHash(password, secret),
 		RegisteredClaims: jwt.RegisteredClaims{
@@ -57,12 +34,7 @@ func createToken(password string) (string, error) {
 	return token.SignedString(secret)
 }
 
-func validateToken(tokenString, password string) error {
-	secret, err := jwtSecret()
-	if err != nil {
-		return err
-	}
-
+func validateToken(tokenString, password string, secret []byte) error {
 	var claims tokenClaims
 
 	token, err := jwt.ParseWithClaims(
@@ -89,19 +61,19 @@ func validateToken(tokenString, password string) error {
 	return nil
 }
 
-func auth(next http.HandlerFunc) http.HandlerFunc {
+func (a *apiHandlers) auth(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		password := os.Getenv("TODO_PASSWORD")
+		password := a.config.Password
 
 		if password != "" {
 			cookie, err := r.Cookie("token")
 			if err != nil {
-				http.Error(w, "Authentication required", http.StatusUnauthorized)
+				writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "authentication required"})
 				return
 			}
 
-			if err := validateToken(cookie.Value, password); err != nil {
-				http.Error(w, "Authentication required", http.StatusUnauthorized)
+			if err := validateToken(cookie.Value, password, a.config.JWTSecret); err != nil {
+				writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "authentication required"})
 				return
 			}
 		}

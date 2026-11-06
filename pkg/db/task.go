@@ -7,6 +7,10 @@ import (
 	"time"
 )
 
+const DateFormat = "20060102"
+
+var ErrNotFound = errors.New("task not found")
+
 type Task struct {
 	ID      string `json:"id"`
 	Date    string `json:"date"`
@@ -42,7 +46,7 @@ func Tasks(limit int, search string) ([]*Task, error) {
 
 	if date, err := time.Parse("02.01.2006", search); err == nil {
 		query += ` WHERE date = ?`
-		args = append(args, date.Format("20060102"))
+		args = append(args, date.Format(DateFormat))
 	} else {
 		query += ` WHERE title LIKE ? OR comment LIKE ?`
 		pattern := "%" + search + "%"
@@ -90,7 +94,7 @@ func GetTask(id string) (*Task, error) {
 		&task.Repeat,
 	)
 	if errors.Is(err, sql.ErrNoRows) {
-		return nil, fmt.Errorf("Task not found")
+		return nil, ErrNotFound
 	}
 	if err != nil {
 		return nil, fmt.Errorf("get task: %w", err)
@@ -121,7 +125,7 @@ func UpdateTask(task *Task) error {
 		return err
 	}
 	if n == 0 {
-		return fmt.Errorf("Task not found")
+		return ErrNotFound
 	}
 	return nil
 }
@@ -137,7 +141,7 @@ func DeleteTask(id string) error {
 		return err
 	}
 	if n == 0 {
-		return fmt.Errorf("No task with such id: %s", id)
+		return fmt.Errorf("delete task %s: %w", id, ErrNotFound)
 	}
 	return nil
 }
@@ -158,7 +162,7 @@ func UpdateDate(next, id string) error {
 		return err
 	}
 	if n == 0 {
-		return fmt.Errorf("Task not found")
+		return ErrNotFound
 	}
 	return nil
 }

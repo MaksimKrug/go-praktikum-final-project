@@ -2,34 +2,51 @@ package api
 
 import (
 	"fmt"
+	"log"
 	"net/http"
 	"time"
+
+	"github.com/MaksimKrug/go-praktikum-final-project/pkg/config"
+	"github.com/MaksimKrug/go-praktikum-final-project/pkg/db"
 )
 
-const dateFormat = "20060102"
+type apiHandlers struct {
+	config config.Config
+}
 
 func nextDayHandler(w http.ResponseWriter, r *http.Request) {
-	now := time.Now()
-	nowParam := r.URL.Query().Get("now")
-	if nowParam != "" {
-		parsedNow, err := time.Parse(dateFormat, nowParam)
+	switch r.Method {
+	case http.MethodGet:
+
+		now := time.Now()
+		nowParam := r.URL.Query().Get("now")
+		if nowParam != "" {
+			parsedNow, err := time.Parse(db.DateFormat, nowParam)
+			if err != nil {
+				http.Error(w, "now parameter not correct: "+err.Error(), http.StatusBadRequest)
+				return
+			}
+			now = parsedNow
+		}
+
+		dateParam := r.URL.Query().Get("date")
+		repeatParam := r.URL.Query().Get("repeat")
+
+		newDate, err := NextDate(now, dateParam, repeatParam)
 		if err != nil {
-			http.Error(w, "now parameter not correct: "+err.Error(), http.StatusBadRequest)
+			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
-		now = parsedNow
+
+		if _, err := fmt.Fprint(w, newDate); err != nil {
+			log.Printf("write response: %v", err)
+		}
+	default:
+		w.Header().Set("Allow", http.MethodGet)
+		writeJSON(w, http.StatusMethodNotAllowed, map[string]string{
+			"error": "request method not supported",
+		})
 	}
-
-	dateParam := r.URL.Query().Get("date")
-	repeatParam := r.URL.Query().Get("repeat")
-
-	newDate, err := NextDate(now, dateParam, repeatParam)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-
-	fmt.Fprint(w, newDate)
 
 }
 
@@ -45,18 +62,17 @@ func taskHandler(w http.ResponseWriter, r *http.Request) {
 		deleteTaskHandler(w, r)
 	default:
 		w.Header().Set("Allow", "GET, POST, PUT, DELETE")
-		w.Header().Set("Content-Type", "application/json; charset=UTF-8")
-		w.WriteHeader(http.StatusMethodNotAllowed)
-		writeJSON(w, map[string]string{
-			"error": "Request method not supported",
+		writeJSON(w, http.StatusMethodNotAllowed, map[string]string{
+			"error": "request method not supported",
 		})
 	}
 }
 
-func Init() {
+func Init(cfg config.Config) {
+	a := &apiHandlers{config: cfg}
 	http.HandleFunc("/api/nextdate", nextDayHandler)
-	http.HandleFunc("/api/task", auth(taskHandler))
-	http.HandleFunc("/api/tasks", auth(tasksHandler))
-	http.HandleFunc("/api/task/done", auth(doneTaskHandler))
-	http.HandleFunc("/api/signin", signinHandler)
+	http.HandleFunc("/api/task", a.auth(taskHandler))
+	http.HandleFunc("/api/tasks", a.auth(tasksHandler))
+	http.HandleFunc("/api/task/done", a.auth(doneTaskHandler))
+	http.HandleFunc("/api/signin", a.signinHandler)
 }

@@ -5,72 +5,37 @@ import (
 	"log"
 	"net"
 	"net/http"
-	"os"
-	"strconv"
 
 	"github.com/MaksimKrug/go-praktikum-final-project/pkg/api"
+	"github.com/MaksimKrug/go-praktikum-final-project/pkg/config"
 	"github.com/MaksimKrug/go-praktikum-final-project/pkg/db"
 )
 
-const (
-	webDir        = "./web"
-	portDefault   = "7540"
-	dbFileDefault = "scheduler.db"
-)
+const webDir = "./web"
 
-func getPort() (string, error) {
-	port := os.Getenv("TODO_PORT")
-	if port == "" {
-		port = portDefault
-	}
-
-	portParsed, err := strconv.Atoi(port)
+func run() error {
+	cfg, err := config.Load()
 	if err != nil {
-		return "", fmt.Errorf("port %q is not a number: %w", port, err)
+		return fmt.Errorf("configuration: %w", err)
 	}
 
-	if portParsed > 65535 || portParsed < 1 {
-		return "", fmt.Errorf("port is outside [1, 65535]: %s", port)
-	}
-
-	return port, nil
-}
-
-func getDBPath() string {
-	dbPath := os.Getenv("TODO_DBFILE")
-	if dbPath == "" {
-		dbPath = dbFileDefault
-	}
-
-	return dbPath
-}
-
-func main() {
-	if err := api.ValidateAuthConfig(); err != nil {
-		log.Fatalf("auth configuration error: %v", err)
-	}
-
-	// create db if needed
-	dbPath := getDBPath()
-	err := db.Init(dbPath)
-	if err != nil {
-		log.Fatalf("db Init error: %v", err)
+	if err := db.Init(cfg.DBFile); err != nil {
+		return fmt.Errorf("db init: %w", err)
 	}
 	defer db.Close()
 
-	// handle web-server
 	http.Handle("/", http.FileServer(http.Dir(webDir)))
+	api.Init(cfg)
 
-	port, err := getPort()
-	if err != nil {
-		log.Fatalf("getPort error: %v", err)
+	log.Printf("server listening on port: %s", cfg.Port)
+	if err := http.ListenAndServe(net.JoinHostPort("", cfg.Port), nil); err != nil {
+		return fmt.Errorf("server: %w", err)
 	}
+	return nil
+}
 
-	api.Init()
-
-	log.Printf("Server Listening on port: %s", port)
-	if err := http.ListenAndServe(net.JoinHostPort("", port), nil); err != nil {
-		log.Fatalf("server not started: %v", err)
+func main() {
+	if err := run(); err != nil {
+		log.Fatal(err)
 	}
-
 }
