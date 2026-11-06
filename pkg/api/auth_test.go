@@ -7,7 +7,36 @@ import (
 	"testing"
 
 	"github.com/MaksimKrug/go-praktikum-final-project/pkg/config"
+	"github.com/golang-jwt/jwt/v5"
 )
+
+func TestTokenWithoutExpiration(t *testing.T) {
+	password := "test-password"
+	secret := []byte(strings.Repeat("s", 32))
+	token, err := createToken(password, secret)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var claims tokenClaims
+	_, err = jwt.ParseWithClaims(token, &claims, func(token *jwt.Token) (any, error) {
+		return secret, nil
+	}, jwt.WithValidMethods([]string{jwt.SigningMethodHS256.Alg()}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if claims.ExpiresAt != nil {
+		t.Fatal("token must not have an expiration date")
+	}
+	if err := validateToken(token, password, secret); err != nil {
+		t.Fatalf("token without expiration rejected: %v", err)
+	}
+	if err := validateToken(token, "changed-password", secret); err == nil {
+		t.Fatal("token accepted after password change")
+	}
+	if err := validateToken(token, password, []byte(strings.Repeat("x", 32))); err == nil {
+		t.Fatal("token accepted after secret change")
+	}
+}
 
 func TestAuthUsesStartupConfig(t *testing.T) {
 	t.Setenv("TODO_PORT", "")

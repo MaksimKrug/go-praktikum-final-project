@@ -6,7 +6,6 @@ import (
 	"encoding/hex"
 	"fmt"
 	"net/http"
-	"time"
 
 	"github.com/golang-jwt/jwt/v5"
 )
@@ -25,9 +24,6 @@ func passwordHash(password string, secret []byte) string {
 func createToken(password string, secret []byte) (string, error) {
 	claims := tokenClaims{
 		PasswordHash: passwordHash(password, secret),
-		RegisteredClaims: jwt.RegisteredClaims{
-			ExpiresAt: jwt.NewNumericDate(time.Now().Add(8 * time.Hour)),
-		},
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
@@ -44,7 +40,6 @@ func validateToken(tokenString, password string, secret []byte) error {
 			return secret, nil
 		},
 		jwt.WithValidMethods([]string{jwt.SigningMethodHS256.Alg()}),
-		jwt.WithExpirationRequired(),
 	)
 	if err != nil {
 		return fmt.Errorf("parse token: %w", err)
