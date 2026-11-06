@@ -5,6 +5,7 @@ go 1.24.13
 require (
 	github.com/golang-jwt/jwt/v5 v5.3.1
 	github.com/jmoiron/sqlx v1.4.0
+	github.com/rs/cors v1.11.1
 	github.com/stretchr/testify v1.12.1
 	modernc.org/sqlite v1.46.1
 )

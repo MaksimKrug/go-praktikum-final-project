@@ -9,6 +9,7 @@ import (
 	"github.com/MaksimKrug/go-praktikum-final-project/pkg/api"
 	"github.com/MaksimKrug/go-praktikum-final-project/pkg/config"
 	"github.com/MaksimKrug/go-praktikum-final-project/pkg/db"
+	"github.com/MaksimKrug/go-praktikum-final-project/pkg/server"
 )
 
 const webDir = "./web"
@@ -26,9 +27,10 @@ func run() error {
 
 	http.Handle("/", http.FileServer(http.Dir(webDir)))
 	api.Init(cfg)
+	handler := server.WithCORS(http.DefaultServeMux, cfg.CORSAllowedOrigins)
 
 	log.Printf("server listening on port: %s", cfg.Port)
-	if err := http.ListenAndServe(net.JoinHostPort("", cfg.Port), nil); err != nil {
+	if err := http.ListenAndServe(net.JoinHostPort("", cfg.Port), handler); err != nil {
 		return fmt.Errorf("server: %w", err)
 	}
 	return nil

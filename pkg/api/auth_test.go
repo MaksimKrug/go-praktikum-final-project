@@ -39,6 +39,7 @@ func TestTokenWithoutExpiration(t *testing.T) {
 }
 
 func TestAuthUsesStartupConfig(t *testing.T) {
+	t.Setenv("TODO_CORS_ORIGINS", "")
 	t.Setenv("TODO_PORT", "")
 	t.Setenv("TODO_PASSWORD", "startup-password")
 	t.Setenv("TODO_JWT_SECRET", strings.Repeat("s", 32))

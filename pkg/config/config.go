@@ -2,15 +2,18 @@ package config
 
 import (
 	"fmt"
+	"net/url"
 	"os"
 	"strconv"
+	"strings"
 )
 
 type Config struct {
-	Port      string
-	DBFile    string
-	Password  string
-	JWTSecret []byte
+	Port               string
+	DBFile             string
+	Password           string
+	JWTSecret          []byte
+	CORSAllowedOrigins []string
 }
 
 // Load reads and validates the environment once, before the server starts.
@@ -36,6 +39,21 @@ func Load() (Config, error) {
 	}
 	if cfg.Password != "" && len(cfg.JWTSecret) < 32 {
 		return Config{}, fmt.Errorf("jwt secret must contain at least 32 bytes (TODO_JWT_SECRET)")
+	}
+	origins := os.Getenv("TODO_CORS_ORIGINS")
+	if origins == "" {
+		cfg.CORSAllowedOrigins = []string{"http://localhost:" + cfg.Port, "http://127.0.0.1:" + cfg.Port}
+	} else {
+		for _, value := range strings.Split(origins, ",") {
+			origin := strings.TrimSpace(value)
+			u, err := url.Parse(origin)
+			if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Hostname() == "" ||
+				u.User != nil || u.Path != "" || u.RawQuery != "" || u.ForceQuery ||
+				u.Fragment != "" || strings.ContainsAny(origin, "*#") {
+				return Config{}, fmt.Errorf("invalid origin in TODO_CORS_ORIGINS: %q", origin)
+			}
+			cfg.CORSAllowedOrigins = append(cfg.CORSAllowedOrigins, origin)
+		}
 	}
 	return cfg, nil
 }
