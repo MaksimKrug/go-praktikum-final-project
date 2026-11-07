@@ -1,0 +1,8 @@
+*.db
+*.db-*
+.env
+.env.*
+!.env.example
+/data/
+/test-data/
+/bin/
